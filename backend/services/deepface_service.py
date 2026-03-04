@@ -1,14 +1,13 @@
 import logging
 import os
 import tempfile
-import uuid
 from typing import BinaryIO
 
 import numpy as np
 from deepface import DeepFace
 
-from db.chroma_client import FaceRecord, add_face, delete_face, list_faces, search_face, search_faces
-from models.person_model import FaceAnalysisResult, PersonResponse, SearchResult
+from db.chroma_client import delete_face, list_faces
+from models.person_model import FaceAnalysisResult, PersonResponse
 
 logger = logging.getLogger("deepeye.deepface")
 
@@ -41,15 +40,6 @@ def _write_temp_image(data: bytes, suffix: str = ".jpg") -> str:
     tmp.write(data)
     tmp.close()
     return tmp.name
-
-
-def _record_to_response(record: FaceRecord) -> PersonResponse:
-    return PersonResponse(
-        id=record.id,
-        firstname=record.firstname,
-        lastname=record.lastname,
-        embedding=record.embedding,
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -143,80 +133,6 @@ def analyze_face(image: BinaryIO) -> FaceAnalysisResult:
         dominant_emotion=data.get("dominant_emotion"),
         dominant_race=data.get("dominant_race"),
     )
-
-
-def register_person(
-    firstname: str,
-    lastname: str,
-    image: BinaryIO,
-) -> PersonResponse:
-    """
-    Extract face embedding from *image* and store it in ChromaDB.
-
-    Raises
-    ------
-    FaceNotFoundError
-        When no face is detected in the image.
-    """
-    embedding: np.ndarray = extract_embedding(image)
-    face_id = str(uuid.uuid4())
-
-    add_face(
-        face_id=face_id,
-        embedding=embedding.tolist(),
-        firstname=firstname.strip(),
-        lastname=lastname.strip(),
-    )
-
-    logger.info("register_person: id=%s name='%s %s'", face_id, firstname, lastname)
-    return PersonResponse(
-        id=face_id,
-        firstname=firstname,
-        lastname=lastname,
-        embedding=embedding.tolist(),
-    )
-
-
-def find_person(image: BinaryIO) -> SearchResult | None:
-    """
-    Return the single closest person for the face in *image*, or ``None``
-    when the database is empty.
-
-    Raises
-    ------
-    FaceNotFoundError
-        When no face is detected in the image.
-    """
-    embedding: np.ndarray = extract_embedding(image)
-    record = search_face(embedding.tolist())
-    if record is None:
-        return None
-    return SearchResult(
-        person=_record_to_response(record),
-        distance=record.distance,
-        confidence=record.confidence,
-    )
-
-
-def search_person(image: BinaryIO, top_k: int = 5) -> list[SearchResult]:
-    """
-    Return the *top_k* closest persons for the face in *image*.
-
-    Raises
-    ------
-    FaceNotFoundError
-        When no face is detected in the image.
-    """
-    embedding: np.ndarray = extract_embedding(image)
-    records = search_faces(embedding.tolist(), n_results=top_k)
-    return [
-        SearchResult(
-            person=_record_to_response(r),
-            distance=r.distance,
-            confidence=r.confidence,
-        )
-        for r in records
-    ]
 
 
 def delete_person(person_id: str) -> None:

@@ -24,20 +24,6 @@ export interface DescribeResponse {
   description: string;
 }
 
-export interface SearchResult {
-  person: PersonResponse;
-  distance: number;
-  confidence: number;
-}
-
-export interface FaceAnalysisResult {
-  age?: number;
-  gender?: string;
-  dominant_emotion?: string;
-  dominant_race?: string;
-  embedding?: number[];
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function imageForm(image: File, extra?: Record<string, string>): FormData {
@@ -73,10 +59,6 @@ export async function deletePerson(id: string): Promise<void> {
   await apiClient.delete(`/persons/${id}`);
 }
 
-export async function analyzeFace(image: File): Promise<FaceAnalysisResult> {
-  const { data } = await apiClient.post<FaceAnalysisResult>("/analyze-face", imageForm(image));
-  return data;
-}
 
 // ── Describe endpoint ─────────────────────────────────────────────────────────
 

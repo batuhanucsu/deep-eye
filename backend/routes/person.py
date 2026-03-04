@@ -5,7 +5,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from db.chroma_client import add_face, search_face as db_search_face
-from models.person_model import FaceAnalysisResult, PersonResponse, SearchResult
+from models.person_model import FaceAnalysisResult, PersonResponse
 from services.deepface_service import (
     FaceNotFoundError,
     analyze_face,

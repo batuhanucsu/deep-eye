@@ -10,11 +10,6 @@ class PersonBase(BaseModel):
     lastname: str = Field(..., description="Last name of the person")
 
 
-class PersonCreate(PersonBase):
-    """Payload accepted by the /load-person endpoint."""
-    pass
-
-
 class PersonResponse(PersonBase):
     """Face record returned by the API."""
 
