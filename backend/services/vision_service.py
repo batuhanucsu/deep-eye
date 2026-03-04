@@ -105,22 +105,3 @@ def describe_image(image: BinaryIO, prompt: str | None = None) -> str:
     text: str = data["choices"][0]["message"]["content"].strip()
     logger.debug("describe_image: received %d chars", len(text))
     return text
-
-
-def describe_image_with_context(image: BinaryIO, known_persons: list[dict]) -> str:
-    """
-    Call :func:`describe_image` with a prompt that includes the names of
-    persons already identified in the image.
-    """
-    if known_persons:
-        names = ", ".join(p.get("name", "Unknown") for p in known_persons)
-        context = f"The following people may appear in this image: {names}. "
-    else:
-        context = ""
-
-    prompt = (
-        f"{context}"
-        "Describe what you see in this image, including the identities of any "
-        "recognised people, their actions, the environment, and notable objects."
-    )
-    return describe_image(image, prompt=prompt)
