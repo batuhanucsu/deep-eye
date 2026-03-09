@@ -136,7 +136,16 @@ async def get_person(
     if record is None:
         raise HTTPException(status_code=404, detail="No persons registered in the database.")
 
-    # 3. Return firstname, lastname and confidence derived from cosine distance
+    # 3. Reject low-confidence matches
+    CONFIDENCE_THRESHOLD = 0.50
+    if record.confidence < CONFIDENCE_THRESHOLD:
+        logger.info(
+            "get-person: no match above threshold (best=%.4f threshold=%.2f)",
+            record.confidence, CONFIDENCE_THRESHOLD,
+        )
+        raise HTTPException(status_code=404, detail="No matching person found.")
+
+    # 4. Return firstname, lastname and confidence derived from cosine distance
     logger.info(
         "get-person: matched '%s %s' confidence=%.4f",
         record.firstname, record.lastname, record.confidence,

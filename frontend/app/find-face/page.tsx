@@ -11,10 +11,12 @@ export default function FindFacePage() {
   const [image, setImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GetPersonResponse | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
   const handleSelect = (file: File) => {
     setImage(file);
     setResult(null);
+    setNotFound(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,28 +24,32 @@ export default function FindFacePage() {
     if (!image) return;
     setLoading(true);
     setResult(null);
+    setNotFound(false);
 
     try {
       const data = await getPerson(image);
       setResult(data);
     } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : "Unknown error");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "No matching person found." || msg === "No persons registered in the database.") {
+        setNotFound(true);
+      } else {
+        toastError(msg || "Unknown error");
+      }
     } finally {
       setLoading(false);
     }
   };
 
+
+
   const confidence = result?.confidence ?? 0;
-  // ArcFace cosine thresholds: distance<0.25 → High, <0.50 → Medium, else Low
   const confColor =
     confidence >= 0.75 ? "text-emerald-400" :
-    confidence >= 0.50 ? "text-yellow-400" : "text-red-400";
+    confidence >= 0.50 ? "text-yellow-400" : "text-orange-400";
   const confBar =
     confidence >= 0.75 ? "bg-emerald-500" :
-    confidence >= 0.50 ? "bg-yellow-500" : "bg-red-500";
-  const confLabel =
-    confidence >= 0.75 ? "High confidence" :
-    confidence >= 0.50 ? "Medium confidence" : "Low confidence";
+    confidence >= 0.50 ? "bg-yellow-500" : "bg-orange-500";
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
@@ -118,9 +124,6 @@ export default function FindFacePage() {
               <p className="text-2xl font-bold text-white">
                 {result.firstname} {result.lastname}
               </p>
-              <p className={`text-sm mt-0.5 font-medium ${confColor}`}>
-                {confLabel}
-              </p>
             </div>
           </div>
 
@@ -139,6 +142,15 @@ export default function FindFacePage() {
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Not found card */}
+      {notFound && (
+        <div className="rounded-2xl border border-gray-700 bg-gray-900/60 px-6 py-8 flex flex-col items-center gap-3 text-center">
+          <span className="text-4xl">🔍</span>
+          <p className="text-lg font-semibold text-white">Sonuç bulunamadı</p>
+          <p className="text-sm text-gray-500">Yüklenen fotoğraf için kayıtlı eşleşme bulunamadı.</p>
         </div>
       )}
     </div>
