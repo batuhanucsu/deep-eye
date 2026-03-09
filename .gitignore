@@ -1,6 +1,9 @@
 # Environment variables
 backend/.env
 
+# Face images (user data)
+backend/face_images/
+
 # Python
 __pycache__/
 *.py[cod]

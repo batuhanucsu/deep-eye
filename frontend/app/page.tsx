@@ -76,7 +76,7 @@ const techs = [
     bg: "bg-purple-950/50",
   },
   {
-    name: "vLLM",
+    name: "UnderOcean",
     icon: "⚡",
     desc: "High-throughput LLM inference engine serving the vision description model.",
     border: "border-orange-800",
@@ -155,7 +155,7 @@ export default function Home() {
             them from any new photo in milliseconds.
           </p>
           <p>
-            Beyond faces, DeepEye connects to a self-hosted vLLM server to generate detailed
+            Beyond faces, DeepEye connects to a self-hosted UnderOcean server to generate detailed
             natural-language descriptions of any image, making it a versatile visual AI toolbox
             for research and real-world applications.
           </p>

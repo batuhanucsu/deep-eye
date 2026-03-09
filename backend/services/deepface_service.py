@@ -6,7 +6,7 @@ from typing import BinaryIO
 import numpy as np
 from deepface import DeepFace
 
-from db.chroma_client import delete_face, list_faces
+from db.chroma_client import FaceRecord, delete_face, list_faces
 from models.person_model import FaceAnalysisResult, PersonResponse
 
 logger = logging.getLogger("deepeye.deepface")
@@ -40,6 +40,15 @@ def _write_temp_image(data: bytes, suffix: str = ".jpg") -> str:
     tmp.write(data)
     tmp.close()
     return tmp.name
+
+
+def _record_to_response(record: FaceRecord) -> PersonResponse:
+    return PersonResponse(
+        id=record.id,
+        firstname=record.firstname,
+        lastname=record.lastname,
+        embedding=record.embedding,
+    )
 
 
 # ──────────────────────────────────────────────────────────────────────────

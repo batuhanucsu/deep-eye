@@ -6,6 +6,30 @@ import Spinner from "@/components/Spinner";
 import { useToast } from "@/components/Toast";
 import { deletePerson, listPersons, registerPerson, type PersonResponse } from "@/lib/api";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
+function PersonAvatar({ person }: { person: PersonResponse }) {
+  const [imgError, setImgError] = useState(false);
+
+  if (imgError) {
+    return (
+      <div className="w-full aspect-square rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-2xl font-bold text-white select-none">
+        {person.firstname[0]}{person.lastname[0]}
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`${API_URL}/persons/${person.id}/image`}
+      alt={person.full_name}
+      onError={() => setImgError(true)}
+      className="w-full aspect-square rounded-xl object-cover"
+    />
+  );
+}
+
 export default function FaceHubPage() {
   const { success, error: toastError } = useToast();
   const [firstname, setFirstname] = useState("");
@@ -196,10 +220,8 @@ export default function FaceHubPage() {
                 key={person.id}
                 className="group relative flex flex-col items-center gap-3 p-4 rounded-2xl border border-gray-800 bg-gray-900/60 hover:border-gray-600 transition-all"
               >
-                {/* Avatar */}
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-500 flex items-center justify-center text-xl font-bold text-white select-none shrink-0">
-                  {person.firstname[0]}{person.lastname[0]}
-                </div>
+                {/* Face image or initials fallback */}
+                <PersonAvatar person={person} />
 
                 {/* Name */}
                 <p className="text-sm font-medium text-white text-center leading-snug truncate w-full text-center">

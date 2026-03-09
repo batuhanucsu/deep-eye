@@ -1,7 +1,11 @@
+import io
 import logging
+import os
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from db.chroma_client import add_face, search_face as db_search_face
@@ -16,6 +20,12 @@ from services.deepface_service import (
 
 logger = logging.getLogger("deepeye.person")
 router = APIRouter()
+
+FACE_IMAGES_DIR = Path(os.getenv(
+    "FACE_IMAGES_DIR",
+    str(Path(__file__).resolve().parent.parent / "face_images")
+))
+FACE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class LoadPersonResponse(BaseModel):
@@ -41,9 +51,14 @@ async def load_person(
 ) -> LoadPersonResponse:
     logger.info("load-person: registering '%s %s'", firstname, lastname)
 
-    # 1. Extract face embedding from the uploaded image
+    # 1. Read image bytes once so we can reuse for both embedding and saving
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Image file is empty.")
+
+    # 2. Extract face embedding
     try:
-        embedding = extract_embedding(image.file)
+        embedding = extract_embedding(io.BytesIO(image_bytes))
     except FaceNotFoundError as exc:
         raise HTTPException(status_code=422, detail=exc.detail) from exc
     except ValueError as exc:
@@ -52,7 +67,7 @@ async def load_person(
         logger.warning("load-person: embedding failed: %s", exc)
         raise HTTPException(status_code=422, detail=f"Embedding extraction failed: {exc}") from exc
 
-    # 2. Persist embedding + metadata to ChromaDB
+    # 3. Persist embedding + metadata to ChromaDB
     face_id = str(uuid.uuid4())
     try:
         add_face(
@@ -64,6 +79,17 @@ async def load_person(
     except Exception as exc:
         logger.error("load-person: db write failed: %s", exc)
         raise HTTPException(status_code=500, detail=f"Database error: {exc}") from exc
+
+    # 4. Save the face image to disk
+    try:
+        ext = Path(image.filename or "face.jpg").suffix or ".jpg"
+        if ext.lower() == ".jfif":
+            ext = ".jpg"
+        image_path = FACE_IMAGES_DIR / f"{face_id}{ext}"
+        image_path.write_bytes(image_bytes)
+        logger.info("load-person: image saved to %s", image_path)
+    except Exception as exc:
+        logger.error("load-person: image save failed: %s", exc)
 
     logger.info("load-person: stored id=%s name='%s %s'", face_id, firstname, lastname)
     return LoadPersonResponse(status="success")
@@ -160,6 +186,24 @@ def list_persons() -> list[PersonResponse]:
 
 
 # ──────────────────────────────────────────────
+# GET /persons/{person_id}/image
+# ──────────────────────────────────────────────
+@router.get(
+    "/persons/{person_id}/image",
+    summary="Get face image of a registered person",
+)
+def get_person_image(person_id: str) -> FileResponse:
+    """Return the stored face image for the given person ID."""
+    matches = list(FACE_IMAGES_DIR.glob(f"{person_id}.*"))
+    if matches:
+        path = matches[0]
+        suffix = path.suffix.lower().lstrip(".")
+        media_type = f"image/{'jpeg' if suffix in ('jpg', 'jfif') else suffix}"
+        return FileResponse(path, media_type=media_type)
+    raise HTTPException(status_code=404, detail="Image not found for this person.")
+
+
+# ──────────────────────────────────────────────
 # DELETE /persons/{person_id}
 # ──────────────────────────────────────────────
 @router.delete(
@@ -167,7 +211,14 @@ def list_persons() -> list[PersonResponse]:
     summary="Delete a person by ID",
 )
 def delete_person_endpoint(person_id: str) -> dict:
-    """Remove a registered person and their embedding from the database."""
+    """Remove a registered person, their embedding, and their image from the database."""
     logger.info("delete-person: id=%s", person_id)
     delete_person(person_id)
+    # Remove saved face image if it exists
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        path = FACE_IMAGES_DIR / f"{person_id}{ext}"
+        if path.exists():
+            path.unlink()
+            logger.debug("delete-person: removed image %s", path)
+            break
     return {"message": f"Person {person_id} deleted successfully."}
